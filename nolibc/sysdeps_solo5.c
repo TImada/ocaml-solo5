@@ -100,11 +100,15 @@ void _nolibc_init(uintptr_t heap_start, size_t heap_size)
 
 /*
  * Called by dlmalloc to allocate or free memory.
+ * Maximum boundary check is not conducted when using frt because the stack 
+ * and heap regions are independent of each other.
  */
 void *sbrk(intptr_t increment)
 {
     uintptr_t prev, brk;
+#ifndef __FRT__
     uintptr_t max = (uintptr_t)&prev - sbrk_guard_size;
+#endif
     prev = brk = sbrk_cur;
 
     /*
@@ -112,7 +116,11 @@ void *sbrk(intptr_t increment)
      * is safe from overflow.
      */
     brk += increment;
+#ifdef __FRT__
+    if (brk >= sbrk_end || brk < sbrk_start)
+#else
     if (brk >= max || brk >= sbrk_end || brk < sbrk_start)
+#endif
         return (void *)-1;
 
     sbrk_cur = brk;

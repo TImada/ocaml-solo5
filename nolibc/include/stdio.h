@@ -19,6 +19,7 @@ extern FILE *stderr;
 int sscanf(const char *, const char *, ...);
 int snprintf(char *, size_t, const char *, ...);
 int vfprintf(FILE *, const char *, va_list);
+int vsprintf(char *restrict s, const char *restrict fmt, va_list ap);
 int vsnprintf(char *, size_t, const char *, va_list);
 /*
  * The following definitions are not required by the OCaml runtime, but are

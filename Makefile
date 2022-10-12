@@ -6,13 +6,35 @@ all:	openlibm/libopenlibm.a nolibc/libnolibc.a ocaml solo5.conf
 
 TOP=$(abspath .)
 
+ifdef MAKECONF_FRT
+CONFIG_PLATFORM_DIR=$(MAKECONF_PLATFORM_DIR)
+include $(CONFIG_PLATFORM_DIR)/Makefile.soc
+# CFLAGS used to build nolibc / openlibm / ocaml runtime
+LOCAL_CFLAGS=$(MAKECONF_CFLAGS) $(CFLAGS_SOC) -I$(TOP)/nolibc/include -include _solo5/overrides.h
+else
 # CFLAGS used to build nolibc / openlibm / ocaml runtime
 LOCAL_CFLAGS=$(MAKECONF_CFLAGS) -I$(TOP)/nolibc/include -include _solo5/overrides.h
+endif # ifdef MAKECONF_FRT
+
 # CFLAGS used by the OCaml compiler to build C stubs
 GLOBAL_CFLAGS=$(MAKECONF_CFLAGS) -I$(MAKECONF_PREFIX)/solo5-sysroot/include/nolibc/ -include _solo5/overrides.h
 # LIBS used by the OCaml compiler to link executables
 GLOBAL_LIBS=-L$(MAKECONF_PREFIX)/solo5-sysroot/lib/nolibc/ -lnolibc -lopenlibm $(MAKECONF_EXTRA_LIBS)
 
+ifdef MAKECONF_FRT
+# NOLIBC
+NOLIBC_CFLAGS=$(LOCAL_CFLAGS) -I$(TOP)/openlibm/src -I$(TOP)/openlibm/include
+nolibc/libnolibc.a:
+	$(MAKE) -C nolibc \
+	    "CC=$(MAKECONF_CC)" \
+	    "AR=$(MAKECONF_AR)" \
+	    "FREESTANDING_CFLAGS=$(NOLIBC_CFLAGS) -D__FRT__" \
+	    "SYSDEP_OBJS=$(MAKECONF_NOLIBC_SYSDEP_OBJS)"
+
+# OPENLIBM
+openlibm/libopenlibm.a:
+	$(MAKE) -C openlibm "CC=$(MAKECONF_CC)" "CPPFLAGS=$(LOCAL_CFLAGS)" "AR=$(MAKECONF_AR)" "MARCH=$(MARCH)" libopenlibm.a
+else
 # NOLIBC
 NOLIBC_CFLAGS=$(LOCAL_CFLAGS) -I$(TOP)/openlibm/src -I$(TOP)/openlibm/include
 nolibc/libnolibc.a:
@@ -24,10 +46,16 @@ nolibc/libnolibc.a:
 # OPENLIBM
 openlibm/libopenlibm.a:
 	$(MAKE) -C openlibm "CC=$(MAKECONF_CC)" "CPPFLAGS=$(LOCAL_CFLAGS)" libopenlibm.a
+endif # ifdef MAKECONF_FRT
 
+ifdef MAKECONF_FRT
+OCAML_SRC=ocaml-embedded-src
+else
+OCAML_SRC=ocaml-src
+endif # ifdef MAKECONF_FRT
 # OCAML
 ocaml/Makefile:
-	cp -r `opam var prefix`/lib/ocaml-src ./ocaml
+	cp -r `opam var prefix`/lib/${OCAML_SRC} ./ocaml
 
 # OCaml >= 4.08.0 uses an autotools-based build system. In this case we
 # convince it to think it's using the Solo5 compiler as a cross compiler, and
@@ -46,6 +74,13 @@ ocaml/Makefile:
 # - We override OCAML_OS_TYPE since configure just hardcodes it to "Unix".
 OC_CFLAGS=$(LOCAL_CFLAGS) -I$(TOP)/openlibm/include -I$(TOP)/openlibm/src -nostdlib
 OC_LIBS=-L$(TOP)/nolibc -lnolibc -L$(TOP)/openlibm -lopenlibm -nostdlib $(MAKECONF_EXTRA_LIBS)
+
+ifdef MAKECONF_FRT
+OCAML_CFG_OPTS = -host=arm-none-eabi -target=armv7r-freestanding-eabihf
+else
+OCAML_CFG_OPTS = -host=$(MAKECONF_BUILD_ARCH)-unknown-none
+endif
+
 ocaml/Makefile.config: ocaml/Makefile openlibm/libopenlibm.a nolibc/libnolibc.a
 # configure: Do not build dynlink
 	sed -i -e 's/otherlibraries="dynlink"/otherlibraries=""/g' ocaml/configure
@@ -83,7 +118,7 @@ ocaml/Makefile.config: ocaml/Makefile openlibm/libopenlibm.a nolibc/libnolibc.a
 		ac_cv_prog_DIRECT_LD="$(MAKECONF_LD)" \
 		ac_cv_lib_m_cos="no" \
 	  ./configure \
-		-host=$(MAKECONF_BUILD_ARCH)-unknown-none \
+        $(OCAML_CFG_OPTS) \
 		-prefix $(MAKECONF_PREFIX)/solo5-sysroot \
 		-disable-shared\
 		-disable-systhreads\
@@ -98,6 +133,11 @@ ocaml/Makefile.config: ocaml/Makefile openlibm/libopenlibm.a nolibc/libnolibc.a
 	echo 'SAK_LINK=cc $(SAK_CFLAGS) $$(OUTPUTEXE)$$(1) $$(2)' >> ocaml/Makefile.config
 	echo '#undef OCAML_OS_TYPE' >> ocaml/runtime/caml/s.h
 	echo '#define OCAML_OS_TYPE "None"' >> ocaml/runtime/caml/s.h
+ifdef MAKECONF_FRT
+	echo '#define HAS_GETTIMEOFDAY 1' >> ocaml/runtime/caml/s.h
+	echo '#define HAS_TIMES 1' >> ocaml/runtime/caml/s.h
+	echo '#define HAS_UNISTD 1' >> ocaml/runtime/caml/s.h
+endif
 
 # NOTE: ocaml/tools/make-version-header.sh is integrated into OCaml's ./configure script starting from OCaml 4.14
 ifneq (,$(wildcard ocaml/tools/make-version-header.sh))
