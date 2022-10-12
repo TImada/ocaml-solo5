@@ -39,6 +39,12 @@
 #endif
 #elif defined(__powerpc__)
 #include "powerpc_fpmath.h"
+#elif defined(__mips__)
+#include "mips_fpmath.h"
+#elif defined(__s390__)
+#include "s390_fpmath.h"
+#elif defined(__riscv)
+#include "riscv_fpmath.h"
 #endif
 
 /* Definitions provided directly by GCC and Clang. */

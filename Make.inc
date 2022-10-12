@@ -6,39 +6,44 @@ default: all
 OS := $(shell uname)
 # Do not forget to bump SOMINOR when changing VERSION,
 # and SOMAJOR when breaking ABI in a backward-incompatible way
-VERSION = 0.5.5
-SOMAJOR = 2
-SOMINOR = 4
+VERSION = 0.8.0
+SOMAJOR = 4
+SOMINOR = 0
 DESTDIR =
-prefix = /usr/local
-bindir = $(prefix)/bin
-libdir = $(prefix)/lib
-includedir = $(prefix)/include
+prefix ?= /usr/local
+bindir ?= $(prefix)/bin
+libdir ?= $(prefix)/lib
+includedir ?= $(prefix)/include
 
 ifeq ($(OS), FreeBSD)
-pkgconfigdir = $(prefix)/libdata/pkgconfig
+pkgconfigdir ?= $(prefix)/libdata/pkgconfig
 else
-pkgconfigdir = $(libdir)/pkgconfig
+pkgconfigdir ?= $(libdir)/pkgconfig
 endif
 
-USEGCC = 1
-USECLANG = 0
+USEGCC ?= 1
+USECLANG ?= 0
 
 ifneq (,$(findstring $(OS),Darwin FreeBSD OpenBSD))
-USEGCC = 0
-USECLANG = 1
+USEGCC ?= 0
+USECLANG ?= 1
 endif
 
-AR = ar
+ifeq ($(ARCH),wasm32)
+USECLANG = 1
+TOOLPREFIX = llvm-
+endif
+
+AR ?= $(TOOLPREFIX)ar
 
 ifeq ($(USECLANG),1)
-USEGCC = 0
+USEGCC ?= 0
 CC = clang
 CFLAGS_add += -fno-builtin -fno-strict-aliasing
 endif
 
 ifeq ($(USEGCC),1)
-CC = gcc
+CC ?= $(TOOLPREFIX)gcc
 CFLAGS_add += -fno-gnu89-inline -fno-builtin
 endif
 
@@ -49,6 +54,9 @@ $(error "the mingw32 compiler you are using fails the openblas testsuite. please
 endif
 
 # OS-specific stuff
+ifeq ($(ARCH),arm64)
+override ARCH := aarch64
+endif
 ifeq ($(findstring arm,$(ARCH)),arm)
 override ARCH := arm
 MARCH ?= armv7-a
@@ -60,12 +68,21 @@ endif
 ifeq ($(findstring ppc,$(ARCH)),ppc)
 override ARCH := powerpc
 endif
+ifeq ($(findstring s390,$(ARCH)),s390)
+override ARCH := s390
+endif
 ifneq ($(filter $(ARCH),i386 i486 i586 i686 i387 i487 i587 i687),)
 override ARCH := i387
 MARCH ?= i686
 endif
 ifeq ($(ARCH),x86_64)
 override ARCH := amd64
+endif
+ifeq ($(findstring mips,$(ARCH)),mips)
+override ARCH := mips
+endif
+ifeq ($(findstring riscv64,$(ARCH)),riscv64)
+override ARCH := riscv64
 endif
 
 # If CFLAGS does not contain a -O optimization flag, default to -O3
@@ -80,8 +97,7 @@ endif
 #keep these if statements separate
 ifeq ($(OS), WINNT)
 SHLIB_EXT = dll
-SONAME_FLAG = -soname
-CFLAGS_add += -nodefaultlibs
+SONAME_FLAG =
 shlibdir = $(bindir)
 else
 ifeq ($(OS), Darwin)
@@ -112,6 +128,10 @@ SFLAGS_arch  += -m64
 LDFLAGS_arch += -m64
 endif
 
+ifeq ($(ARCH),wasm32)
+CFLAGS_arch += -ffreestanding -nostdlib -nostdinc --target=wasm32-unknown-unknown
+endif
+
 # Add our "arch"-related FLAGS in.  We separate arch-related flags out so that
 # we can conveniently get at them for targets that don't want the rest of
 # *FLAGS_add, such as the testing Makefile targets
@@ -128,13 +148,16 @@ CFLAGS_add += -I$(OPENLIBM_HOME)/ld128
 endif
 endif
 
-
-# *int / *intf need to be built with -O0
-src/%int.c.o: src/%int.c
-	$(CC) $(CPPFLAGS) -O0 $(CFLAGS_add) -c $< -o $@
-
-src/%intf.c.o: src/%intf.c
-	$(CC) $(CPPFLAGS) -O0 $(CFLAGS_add) -c $< -o $@
+ifneq ($(filter $(ARCH),i387 amd64),)
+# Determines whether `long double` is the same as `double` on this arch.
+# linux x86_64, for instance, `long double` is 80 bits wide, whereas on macOS aarch64,
+# `long double` is the same as `double`. 
+LONG_DOUBLE_NOT_DOUBLE := 1
+else ifeq ($(ARCH), aarch64)
+ifeq ($(filter $(OS),Darwin WINNT),)
+LONG_DOUBLE_NOT_DOUBLE := 1
+endif
+endif
 
 %.c.o: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(CFLAGS_add) -c $< -o $@

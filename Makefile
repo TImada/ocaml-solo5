@@ -2,6 +2,7 @@ OPENLIBM_HOME=$(abspath .)
 include ./Make.inc
 
 SUBDIRS = src $(ARCH) bsdsrc
+ifeq ($(LONG_DOUBLE_NOT_DOUBLE),1)
 # Add ld80 directory on x86 and x64
 ifneq ($(filter $(ARCH),i387 amd64),)
 SUBDIRS += ld80
@@ -9,6 +10,7 @@ else
 ifneq ($(filter $(ARCH),aarch64),)
 SUBDIRS += ld128
 else
+endif
 endif
 endif
 
@@ -44,12 +46,19 @@ else
 OLM_MAJOR_MINOR_SHLIB_EXT := $(SHLIB_EXT).$(SOMAJOR).$(SOMINOR)
 OLM_MAJOR_SHLIB_EXT := $(SHLIB_EXT).$(SOMAJOR)
 endif
+LDFLAGS_add += -Wl,$(SONAME_FLAG),libopenlibm.$(OLM_MAJOR_SHLIB_EXT)
 endif
 
 .PHONY: all check test clean distclean \
 	install install-static install-shared install-pkgconfig install-headers
 
-all: libopenlibm.a libopenlibm.$(OLM_MAJOR_MINOR_SHLIB_EXT)
+
+OLM_LIBS := libopenlibm.a
+ifneq ($(ARCH), wasm32)
+OLM_LIBS += libopenlibm.$(OLM_MAJOR_MINOR_SHLIB_EXT)
+endif
+
+all : $(OLM_LIBS)
 
 check test: test/test-double test/test-float
 	test/test-double
@@ -59,7 +68,7 @@ libopenlibm.a: $(OBJS)
 	$(AR) -rcs libopenlibm.a $(OBJS)
 
 libopenlibm.$(OLM_MAJOR_MINOR_SHLIB_EXT): $(OBJS)
-	$(CC) -shared $(OBJS) $(LDFLAGS) $(LDFLAGS_add) -Wl,$(SONAME_FLAG),libopenlibm.$(OLM_MAJOR_SHLIB_EXT) -o $@
+	$(CC) -shared $(OBJS) $(LDFLAGS) $(LDFLAGS_add) -o $@
 ifneq ($(OS),WINNT)
 	ln -sf $@ libopenlibm.$(OLM_MAJOR_SHLIB_EXT)
 	ln -sf $@ libopenlibm.$(SHLIB_EXT)
@@ -72,7 +81,7 @@ test/test-float: libopenlibm.$(OLM_MAJOR_MINOR_SHLIB_EXT)
 	$(MAKE) -C test test-float
 
 clean:
-	rm -f aarch64/*.o amd64/*.o arm/*.o bsdsrc/*.o i387/*.o ld80/*.o ld128/*.o src/*.o powerpc/*.o
+	rm -f aarch64/*.o amd64/*.o arm/*.o bsdsrc/*.o i387/*.o ld80/*.o ld128/*.o src/*.o powerpc/*.o mips/*.o s390/*.o riscv64/*.o
 	rm -f libopenlibm.a libopenlibm.*$(SHLIB_EXT)*
 	$(MAKE) -C test clean
 
@@ -87,7 +96,13 @@ install-static: libopenlibm.a
 
 install-shared: libopenlibm.$(OLM_MAJOR_MINOR_SHLIB_EXT)
 	mkdir -p $(DESTDIR)$(shlibdir)
+ifeq ($(OS), WINNT)
+	mkdir -p $(DESTDIR)$(libdir)
+	cp -RpP -f libopenlibm.*$(SHLIB_EXT) $(DESTDIR)$(shlibdir)/
+	cp -RpP -f libopenlibm.*$(SHLIB_EXT).a $(DESTDIR)$(libdir)/
+else
 	cp -RpP -f libopenlibm.*$(SHLIB_EXT)* $(DESTDIR)$(shlibdir)/
+endif
 
 install-pkgconfig: openlibm.pc
 	mkdir -p $(DESTDIR)$(pkgconfigdir)
