@@ -76,7 +76,7 @@ OC_CFLAGS=$(LOCAL_CFLAGS) -I$(TOP)/openlibm/include -I$(TOP)/openlibm/src -nostd
 OC_LIBS=-L$(TOP)/nolibc -lnolibc -L$(TOP)/openlibm -lopenlibm -nostdlib $(MAKECONF_EXTRA_LIBS)
 
 ifdef MAKECONF_FRT
-OCAML_CFG_OPTS = -host=arm-none-eabi -target=armv7r-freestanding-eabihf
+OCAML_CFG_OPTS = -host=arm-none-eabi
 else
 OCAML_CFG_OPTS = -host=$(MAKECONF_BUILD_ARCH)-unknown-none
 endif
