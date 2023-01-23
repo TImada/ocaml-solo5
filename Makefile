@@ -139,6 +139,8 @@ ifdef MAKECONF_FRT
 	echo '#define HAS_UNISTD 1' >> ocaml/runtime/caml/s.h
 	echo '#undef POSIX_SIGNALS' >> ocaml/runtime/caml/s.h
 	echo '#undef HAS_GETRUSAGE' >> ocaml/runtime/caml/s.h
+	echo '#undef HAS_FFS' >> ocaml/runtime/caml/s.h
+	echo '#undef HAS_BITSCANFORWARD' >> ocaml/runtime/caml/s.h
 endif
 
 # NOTE: ocaml/tools/make-version-header.sh is integrated into OCaml's ./configure script starting from OCaml 4.14
