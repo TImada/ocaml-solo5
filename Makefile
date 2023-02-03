@@ -49,7 +49,11 @@ openlibm/libopenlibm.a:
 endif # ifdef MAKECONF_FRT
 
 ifdef MAKECONF_FRT
+ifeq ($(PROC_FAMILY),ARM_V7R)
 OCAML_SRC=ocaml-embedded-src
+else
+$(error Unsupported processor family!)
+endif # ifeq ($(PROC_FAMILY),...)
 else
 OCAML_SRC=ocaml-src
 endif # ifdef MAKECONF_FRT
