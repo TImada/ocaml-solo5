@@ -49,11 +49,7 @@ openlibm/libopenlibm.a:
 endif # ifdef MAKECONF_FRT
 
 ifdef MAKECONF_FRT
-ifeq ($(PROC_FAMILY),ARM_V7R)
 OCAML_SRC=ocaml-embedded-src
-else
-$(error Unsupported processor family!)
-endif # ifeq ($(PROC_FAMILY),...)
 else
 OCAML_SRC=ocaml-src
 endif # ifdef MAKECONF_FRT
@@ -80,7 +76,13 @@ OC_CFLAGS=$(LOCAL_CFLAGS) -I$(TOP)/openlibm/include -I$(TOP)/openlibm/src -nostd
 OC_LIBS=-L$(TOP)/nolibc -lnolibc -L$(TOP)/openlibm -lopenlibm -nostdlib $(MAKECONF_EXTRA_LIBS)
 
 ifdef MAKECONF_FRT
+ifeq ($(PROC_FAMILY),ARM_V7R)
 OCAML_CFG_OPTS = -host=arm-none-eabi
+else ifeq ($(PROC_FAMILY),ARM_V7M_DWT)
+OCAML_CFG_OPTS = -host=arm-none-eabi
+else
+$(error Unsupported processor family!)
+endif # ifeq ($(PROC_FAMILY),...)
 else
 OCAML_CFG_OPTS = -host=$(MAKECONF_BUILD_ARCH)-unknown-none
 endif
@@ -122,7 +124,7 @@ ocaml/Makefile.config: ocaml/Makefile openlibm/libopenlibm.a nolibc/libnolibc.a
 		ac_cv_prog_DIRECT_LD="$(MAKECONF_LD)" \
 		ac_cv_lib_m_cos="no" \
 	  ./configure \
-        $(OCAML_CFG_OPTS) \
+		$(OCAML_CFG_OPTS) \
 		-prefix $(MAKECONF_PREFIX)/solo5-sysroot \
 		-disable-shared\
 		-disable-systhreads\

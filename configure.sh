@@ -71,7 +71,7 @@ MAKECONF_AS="$MAKECONF_CC -c"
 # Use an architecture specific 'ar' command for solo5-frt and apply SoC 
 # specific configuration.
 case "${CONFIG_TARGET}" in
-    am64x-r5-*)
+    am64x-r5-*|rt1176-m7-*)
         MAKECONF_AR="$CONFIG_TARGET-ar"
         MAKECONF_FRT=1
         ;;
@@ -97,6 +97,10 @@ case "${BUILD_TRIPLET}" in
                 BUILD_ARCH="am64x-r5"
                 OCAML_BUILD_ARCH="arm"
                 ;;
+            rt1176-m7-*)
+                BUILD_ARCH="rt1176-m7"
+                OCAML_BUILD_ARCH="arm"
+                ;;
         esac
         ;;
     *)
@@ -106,10 +110,7 @@ esac
 
 EXTRA_LIBS=
 case "${OCAML_BUILD_ARCH}" in
-    arm64)
-        EXTRA_LIBS="$EXTRA_LIBS -lgcc" || exit 1
-        ;;
-    arm)
+    arm64|arm)
         EXTRA_LIBS="$EXTRA_LIBS -lgcc" || exit 1
         ;;
 esac
